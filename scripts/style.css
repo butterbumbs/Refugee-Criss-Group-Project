@@ -1,0 +1,138 @@
+/* ── Corner accents ── */
+.reveal::before,
+.reveal::after {
+  content: "";
+  position: fixed;
+  width: 180px;
+  height: 180px;
+  background: #7a003c;
+  opacity: 0.08;
+  z-index: 0;
+  pointer-events: none;
+}
+.reveal::before { top: 0; left: 0; border-bottom-right-radius: 180px; }
+.reveal::after  { bottom: 0; right: 0; border-top-left-radius: 180px; }
+
+/* ── General ── */
+.reveal { font-size: 26px; line-height: 1.4; }
+
+.reveal h1, .reveal h2 { color: #7a003c; font-weight: 700; }
+.reveal h2 { margin-bottom: 16px; }
+.reveal h3 { color: #555; font-weight: 600; }
+
+.reveal .slides section {
+  text-align: left;
+  box-sizing: border-box;
+}
+
+/* ── Title slide ── */
+#title-slide h1.title {
+  text-align: center !important;
+  color: #7a003c;
+  margin-bottom: 0.2em;
+}
+
+#title-slide p.subtitle {
+  text-align: center !important;
+  color: #555;
+  margin-bottom: 0;
+}
+
+/* Hide affiliation & date */
+#title-slide .quarto-title-author-affiliation,
+#title-slide .date {
+  display: none;
+}
+
+/* ── Left notes column ── */
+.left-notes {
+  text-align: left !important;
+  font-size: 0.86em;
+  line-height: 1.55;
+}
+
+.left-notes ul, .left-notes ol {
+  padding-left: 1em;
+  margin-bottom: 0.5em;
+}
+
+.left-notes li { margin-bottom: 0.3em; }
+
+/* Takeaway blockquote */
+.left-notes blockquote {
+  background: #f8f4f6;
+  border-left: 5px solid #7a003c;
+  padding: 10px 14px;
+  margin: 16px 0 0 0;
+  border-radius: 3px;
+  font-size: 0.9em;
+}
+
+/* ── Right plot column ── */
+.right-plot {
+  display: flex;
+  justify-content: flex-end;
+  align-items: flex-start;
+}
+
+.right-plot img,
+.right-plot canvas,
+.right-plot figure,
+.right-plot p {
+  max-width: 100%;
+  height: auto;
+}
+
+/* ── Table ── */
+.reveal table { margin: auto; border-collapse: collapse; font-size: 21px; }
+.reveal th    { background-color: #7a003c; color: white; padding: 8px 12px; }
+.reveal td    { padding: 6px 10px; }
+.reveal tr:nth-child(even) { background-color: #f5f5f5; }
+
+/* ── Footer ── */
+.reveal .footer { font-size: 13px; color: #999; }
+
+/* ── 25/75 column layout (Option D) ── */
+.reveal .columns > .column.left-notes {
+  font-size: 0.82em;
+  line-height: 1.5;
+}
+
+/* ── Map slide: full-width plot (Option B) ── */
+.map-slide {
+  padding: 10px 20px !important;
+}
+
+.map-slide .cell,
+.map-slide figure,
+.map-slide img,
+.map-slide p {
+  width: 100% !important;
+  max-width: 100% !important;
+  margin: 0 !important;
+}
+
+/* Overlay box: top-right corner */
+.map-overlay {
+  position: absolute;
+  top: 60px;
+  right: 32px;
+  background: rgba(255, 255, 255, 0.88);
+  border-left: 4px solid #7a003c;
+  padding: 10px 16px;
+  font-size: 0.72em;
+  line-height: 1.55;
+  max-width: 300px;
+  border-radius: 3px;
+  z-index: 10;
+}
+
+.map-overlay ul {
+  margin: 0;
+  padding-left: 1em;
+  list-style: disc;
+}
+
+.map-overlay li {
+  margin-bottom: 0.25em;
+}

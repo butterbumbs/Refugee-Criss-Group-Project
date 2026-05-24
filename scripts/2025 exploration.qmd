@@ -1,0 +1,414 @@
+---
+title: "2025 exploration"
+format: html
+embed-resources: true
+execute:
+  warning: false
+  message: false
+---
+
+```{r output=FALSE}
+library(tidyverse) 
+library(survey)
+library(srvyr)
+library(haven)
+library(sjlabelled)
+library(rvest)
+library(sf)
+library(cancensus)
+library(scales)
+library(modelsummary)
+```
+
+
+```{r}
+#load in and wrangle
+survey_2025 <-read_sav(
+  "../data/IRG1949_CTM2511_W4_20251202_WT (Month).sav") %>%
+  mutate(
+    FSA = str_to_upper(FSA)) %>%
+      select(
+        too_many = IMM6, FSA, WT,WT_BC,
+        GENDER, EDU, INCOME, FEDVOTE, AGE_COL2)
+survey_2025$too_many <- get_labels(survey_2025$too_many)[survey_2025$too_many]
+
+survey_2025 <- survey_2025 %>%
+  mutate(
+    too_many = case_when(
+      too_many %in% c(
+        "Strongly agree","Somewhat agree") ~ "Agree",
+        too_many == "Neither agree nor disagree" ~ "Neither",
+        too_many %in% c("Somewhat disagree","Strongly disagree") ~ "Disagree"
+        ),
+        too_many = factor(
+          too_many, levels = c(
+            "Disagree", "Neither", "Agree"), ordered = TRUE))
+
+
+```
+
+## CLEAN SOME MORE :0
+```{r}
+## webscrap for first letter of FSA by province and clean up by hand
+#url <- "https://www150.statcan.gc.ca/n1/pub/92-195-x/2011001/other-autre/pc-cp/tbl/tbl9-eng.htm"
+#FSA_PROV <- url %>% read_html() %>% html_element(xpath = "//main//table") %>% html_table()
+#write.csv(FSA_PROV, "FSA_PROV.csv")
+
+FSA_PROV <- read_csv("../data/FSA_PROV.csv")
+
+survey_2025_clean <- survey_2025 %>%
+  mutate(FSA = str_sub(FSA, 1, 1)) %>%
+  left_join(
+    FSA_PROV %>% 
+      select(
+        PC, PROV),
+        by = c("FSA" = "PC")) %>%
+  filter(
+    !is.na(too_many),
+    !is.na(INCOME),
+    GENDER != 3,
+    EDU != 99,
+    INCOME != 99) %>%
+  mutate(
+
+    AGE = factor(
+      AGE_COL2,
+      levels = 1:3,
+      labels = c("18-34", "35-54", "55+"),
+      ordered = FALSE
+    ),
+    GENDER = factor(
+      GENDER,
+      levels = c(1, 2),
+      labels = c("Man", "Woman")
+    ),
+    EDU = case_when(
+      EDU %in% c(1,2) ~ "High school or less",
+      EDU %in% c(3,4)  ~ "At Least Some College",
+      EDU %in% c(5,6,7) ~ "At Least Some University"),
+    EDU = factor(
+      EDU,
+      levels = c(
+        "High school or less", "At Least Some College", "At Least Some University")),
+        EDU = relevel(EDU, ref = "At Least Some University"
+    ),
+    INCOME = case_when(
+      INCOME %in% c(1,2) ~ "Low - < $60k",
+      INCOME %in% c(3,4) ~ "Middle - < $100k",
+      INCOME %in% c(5,6) ~ "High - $100k+"),
+    INCOME = factor(
+      INCOME,
+      levels = c("Low - < $60k", "Middle - < $100k", "High - $100k+")
+    ),
+    PROV = case_when(
+      PROV %in% c("BC") ~ "BC",
+      PROV %in% c("SK", "MB", "AB") ~ "Prairies",
+      PROV %in% c("ON") ~ "ON",
+      PROV %in% c("QC") ~ "QC",
+      PROV %in% c("NS", "NB", "NL", "PE", "NT", "NU", "YT") ~ "Atlantic & Territories"),
+    PROV = factor(
+      PROV,
+      levels = c("ON","QC","BC","Prairies","Atlantic & Territories")),
+      PROV = relevel(PROV, ref = "ON"
+    ),
+    FEDVOTE = case_when(
+      FEDVOTE == 1  ~ "Conservative",
+      FEDVOTE == 2  ~ "Liberal",
+      FEDVOTE == 3  ~ "NDP",
+      FEDVOTE == 5  ~ "Green",
+      FEDVOTE == 6  ~ "PPC",
+      FEDVOTE %in% c(4, 88, 98, 99) ~ NA),
+    FEDVOTE = factor(
+      FEDVOTE,
+      levels = c("NDP", "Green", "Liberal", "Conservative","PPC")),
+      FEDVOTE = relevel(FEDVOTE, ref = "Liberal")
+  )
+
+survey_2025_clean <- survey_2025_clean %>%
+  filter(!is.na(FEDVOTE))
+
+
+```
+
+## Ord logit Regression
+```{r}
+design_2025 <- svydesign(
+  ids     = ~1,
+  weights = ~WT,
+  data    = survey_2025_clean
+)
+
+model_s2 <- svyolr(too_many ~ FEDVOTE + EDU + AGE + GENDER + INCOME + PROV, design = design_2025)
+
+summary(model_s2)
+
+# p values
+coefs_s2 <- summary(model_s2)$coefficients
+p_values_s2 <- 2 * (1 - pnorm(abs(coefs_s2[, "t value"])))
+cbind(coefs_s2, p_value_s2 = round(p_values_s2, 4))
+
+# odd ratios
+exp(coef(model_s2))
+```
+
+```{r}
+modelsummary(
+  model_s2, exponentiate = TRUE, stars = TRUE, fmt = 3)
+
+```
+
+```{r}
+final_model <- list("Logistic Model" = model_s2)
+
+modelsummary(
+  final_model,
+  exponentiate = TRUE,
+  stars = TRUE,
+  fmt = 3,
+  coef_map = c(
+    "FEDVOTEConservative" = "Conservative",
+    "FEDVOTENDP" = "NDP",
+    "EDUHigh school or less" = "High School or Less",
+    "EDUAt Least Some College" = "College / Trades",
+    "AGE35-54" = "Age: 35–54",
+    "PROVQC" = "Quebec",
+    "PROVBC" = "British Columbia",
+    "PROVAtlantic & Territories" = "Atlantic & Territories"
+  ),
+  gof_map = list(list(raw = "nobs", clean = "n", fmt = 0)
+  ),
+  notes = list(
+    "Source: Innovative Research Group. November, 2025 Survey", 
+    "Note: Dropped non-significant coefficients, undecided respondents, and Bloc Québécois")
+)
+```
+
+## correlation representation
+```{r}
+# diff from liberals
+lollipop_data <- data.frame(
+  party = c("NDP", "Green", "Conservative", "PPC"),
+  or = exp(coef(model_s2)[c("FEDVOTENDP","FEDVOTEGreen","FEDVOTEConservative","FEDVOTEPPC")])) %>%
+  mutate(
+    pct_diff = (or - 1) * 100,
+    label = case_when(
+      pct_diff > 0 ~ paste0("+", round(pct_diff, 0), "%"),
+      TRUE ~ paste0(round(pct_diff, 0), "%")
+    ),
+    party = factor(
+      party,
+      levels = c("NDP","Green","Conservative","PPC")),
+      colour = if_else(pct_diff > 0, "#E67E22", "#2E86C1")
+  )
+
+ggplot(
+  lollipop_data,
+  aes(x = pct_diff, y = party, colour = colour)) +
+    geom_vline(xintercept = 0, linewidth = 0.8, colour = "grey", linetype = "dashed") +
+    geom_segment(aes(x = 0, xend = pct_diff, y = party, yend = party), linewidth = 1.2) +
+    geom_point(size = 6) +
+    geom_text(aes(label = label), nudge_y = 0.3, size = 4, fontface = "bold", colour = "grey20") +
+    annotate(
+      "text", x = 0, y = 0.5, label = "← Liberal voters",
+      hjust = 0, vjust = 0, size = 3.5, colour = "grey40", fontface = "italic") +
+    scale_colour_identity() +
+    scale_x_continuous(
+      breaks = c(-50, 0, 50, 100, 150),
+      labels = c("-50%", "0%", "50%", "100%", "150%"),
+      limits = c(-50, 175)) +
+    labs(
+      title = "Too Many Immigrants were Admitted - Agree or Disagree",
+      subtitle = "% more or less likely to agree than Liberal voters",
+      x = "% difference from Liberal voters",
+      y = NULL,
+      caption  = "Source: November, 2025 Survey.") +
+    theme_minimal(base_size = 13) +
+    theme(
+      panel.grid.major.y = element_blank(),
+      panel.grid.minor   = element_blank(),
+      legend.position    = "none"
+    )
+```
+
+## stacked bar
+```{r}
+#weight
+bar_plot <- survey_2025_clean %>%
+  group_by(too_many, FEDVOTE) %>%
+  summarise(weighted_count = sum(WT), .groups = "drop") %>%
+  group_by(too_many) %>%
+  mutate(prop = weighted_count/sum(weighted_count)) %>%
+  ungroup()
+
+ggplot(
+  bar_plot, aes(x = too_many, y = prop, fill = FEDVOTE)) +
+    geom_bar(stat = "identity", position = "stack") +
+    geom_text(
+      aes(
+        label = paste0(round(prop * 100), "%")), position = position_stack(vjust = 0.5), 
+        size = 3, colour = "white", fontface = "bold") +
+    scale_fill_manual(
+      values = c(
+        "NDP" = "#F4831F",
+        "Green" = "#3D9B35",
+        "Bloc" = "#33B2CC",
+        "Liberal" = "#b13034",
+        "Conservative" = "#255696",
+        "PPC" = "#3c0364"
+      ), name = "Federal Vote Intention") +
+    scale_y_continuous(labels = percent_format(accuracy = 1)) +
+    labs(
+      title = "Federal Vote Intention by Immigration Sentiment",
+      subtitle = "Weighted proportions",
+      x = "Too many immigrants admitted",
+      y = "Share of respondents",
+      caption = "Source: November, 2025 Survey") +
+    theme_minimal(base_size = 14) +
+    theme(
+      axis.text.x = element_text(angle = 25, hjust = 1),
+      legend.position = "bottom"
+    )
+
+
+```
+
+## map
+```{r output=FALSE}
+set_cancensus_api_key(
+  'CensusMapper_06f78448de073322da85cf56670c6f08',
+  install = TRUE,
+  overwrite = TRUE)
+
+city_chars <- get_census(
+  dataset = "CA21",
+  regions = list(PR = "59"),
+  level = "CSD",
+  vectors = c(
+    "v_CA21_2",
+    "v_CA16_2397",
+    "v_CA16_3411",
+    "v_CA16_3957",
+    "v_CA16_425",
+    "v_CA16_4900"
+  ),
+  geo_format = "sf") %>%
+  select(
+    name = `Region Name`,
+    population = `v_CA21_2: Population, 2016`,
+    median_income = `v_CA16_2397: Median total income of households in 2015 ($)`,
+    immigrant = `v_CA16_3411: Immigrants`,
+    avg_hh_size = `v_CA16_425: Average household size`,
+    median_rent = `v_CA16_4900: Median monthly shelter costs for rented dwellings ($)`,
+    geometry) %>%
+  mutate(
+    name  = str_remove(name, " \\(.*\\)"),
+    pct_immigrant = round((immigrant/population) * 100, 1),
+    treated = if_else(name == "Surrey", "Treatment", "Control")
+  )
+```
+
+```{r}
+#clean 
+city_chars <- city_chars %>% mutate(
+    name  = str_remove(name, "\\d+"))
+city_chars <- city_chars %>% mutate(
+    name  = str_remove(name, " +$"))
+city_chars <- city_chars %>% mutate(
+    name  = str_remove(name, " [A-Za-z]$"))
+city_chars <- city_chars %>% mutate(
+    name  = str_remove(name, "^ +")) 
+
+gar_count <- read.csv("../data/GAR_Count.csv") %>% select(-year)
+
+city_chars <- city_chars %>%
+  left_join(gar_count, by="name") %>%
+      dplyr::filter(name %in% gar_count$name) %>%
+      mutate(
+        syrian_pct = round((GAR / population) * 100, 4)
+      )  
+      
+city_chars <- city_chars %>%
+  mutate(map_label = paste0(name, "\n", round(syrian_pct, 3), "%"))
+
+city_chars <- city_chars[-(16:17), ]
+
+
+
+city_chars <- city_chars %>%
+  mutate(
+    name = case_when(
+      name %in% c("Burnaby", "New Westminster") ~ "Burnaby & New Westminster",
+      name %in% c("Coquitlam", "Port Coquitlam") ~ "Coquitlam & Port Coquitlam",
+      name %in% c("Langley") ~ "Langley",
+      TRUE ~ name
+    )
+  )
+
+city_chars <- city_chars %>%
+  select(name,population,treated,GAR,geometry,syrian_pct,map_label) %>%
+  group_by(name) %>%
+  summarise(
+    population = sum(population, na.rm = TRUE),
+    GAR = first(GAR),
+    geometry = st_union(geometry),
+    .groups = "drop"
+  ) %>%
+  mutate(
+    gar_pct = ((GAR/population)*100),
+    map_label = paste0(name, "\n", sprintf("%.2f%%", gar_pct)),
+    did_status = case_when(
+      name %in% c("Surrey") ~ "Treated",
+      name %in% c("Abbotsford", "Chilliwack", "Maple Ridge", "Richmond") ~ "Control",
+      TRUE ~ "other"
+    )
+  )
+
+
+```
+
+```{r}
+ggplot(
+  city_chars) +
+    geom_sf(aes(fill = gar_pct), color = NA) +
+    geom_sf(fill = NA, color = "white", linewidth = 0.4) +
+    geom_sf(
+      data = city_chars %>% filter(did_status == "Control"),
+      aes(color = "Control"),
+      fill = NA,
+      linewidth = 1) +
+    geom_sf(
+      data = city_chars %>% filter(did_status == "Treated"),
+      aes(color = "Treated"),
+      fill = NA,
+      linewidth = 1.2) +
+    geom_sf_text(
+      aes(label = map_label),
+      size = 2.9,
+      lineheight = 2) +
+    scale_fill_gradient(
+      low = "#ffd900",
+      high = "#f50121",
+      name = "GAR arrivals\n(% of population)") +
+    scale_color_manual(
+      name = "Status",
+      values = c("Control" = "#000000","Treated" = "#1ac6e4")) +
+    labs(
+      title = "GAR Arrivals Share of Population",
+      caption = "Source: Immigrant Services Society of B.C. (2017)") +
+    theme_void() +
+    theme(
+      plot.title = element_text(hjust = 0.5, face = "bold", size = 18),
+      legend.position = "right",
+      legend.title = element_text(size = 11),
+      legend.text = element_text(size = 10))
+```
+
+## save data for presentation
+
+```{r}
+saveRDS(model_s2, "model_ord.rds")
+saveRDS(lollipop_data, "lollipop.rds")
+saveRDS(bar_plot, "bar.rds")
+saveRDS(city_chars, "city_chars.rds")
+
+```

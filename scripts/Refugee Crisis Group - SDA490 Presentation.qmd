@@ -1,0 +1,441 @@
+---
+title: "Asylum Seekers and Canadian Voters: Examining the 2015 Refugee Crisis​"
+subtitle: "SDA490: Capstone Project​"
+author: 
+  - "Cho Yi Ho​"
+  - "Jason Zhou"
+  - "Kennedy Jokonya"
+  - "Thwin Than Thar Nway"
+format:
+  revealjs:
+    theme: simple
+    slide-number: true
+    transition: fade
+    chalkboard: false
+    smaller: false
+    center: false
+    incremental: false
+    css: style.css
+    embed-resources: true
+execute:
+  echo: false
+  warning: false
+  message: false
+---
+
+```{r output=FALSE}
+library(tidyverse)
+library(fixest)
+library(scales)
+library(sf)
+
+lollipop <- readRDS("../data/lollipop.rds")
+bar <- readRDS("../data/bar.rds")
+map <- readRDS("../data/city_chars.rds")
+pre_check <- readRDS("../data/pre_check.rds")
+did_data <- readRDS("../data/did_data.rds")
+ribbon <- readRDS("../data/ribbon.rds")
+event_model <- readRDS("../data/event_model.rds")
+
+
+
+```
+
+## Motivation: Immigration and Partisanship​
+
+-   Many studies have examined the relationship between immigrants and refugees on host countries.​
+
+-   Quantitative studies have shown that refugee shocks tend to be associated with an increase in votes for the radical right. ​
+
+-   Within Canada, many argue that Canada’s immigration policies are constrained, others have argued for stricter immigration policies amidst challenges on rising prices, affordable housing and public services in Canada.​
+
+------------------------------------------------------------------------
+
+## Research Questions​
+
+> ### What is the relationship between immigration and partisanship?
+
+> ### What is the impact of large refugee flows on voting intentions in Canada?
+
+------------------------------------------------------------------------
+
+## Anti-Immigrant Sentiment Across Party Voters
+
+::::: columns
+::: {.column .left-notes width="25%"}
+-   **14%** of those that support Conservative disagree, rising to **48%** that do agree.
+-   PPC, which is considered far-right is inconsistent due to a small sample size​.
+
+> Positive association between Conservative support and anti-immigration attitudes.
+:::
+
+::: {.column .right-plot width="75%"}
+```{r}
+#| fig.width: 7
+#| fig.height: 5.6
+ggplot(
+  bar, aes(x = too_many, y = prop, fill = FEDVOTE)) +
+    geom_bar(stat = "identity", position = "stack") +
+    geom_text(
+      aes(
+        label = paste0(round(prop * 100), "%")), position = position_stack(vjust = 0.5), 
+        size = 3, colour = "white", fontface = "bold") +
+    scale_fill_manual(
+      values = c(
+        "NDP" = "#F4831F",
+        "Green" = "#3D9B35",
+        "Bloc" = "#33B2CC",
+        "Liberal" = "#b13034",
+        "Conservative" = "#255696",
+        "PPC" = "#3c0364"
+      ), name = "Vote Intention") +
+    scale_y_continuous(labels = percent_format(accuracy = 1)) +
+    labs(
+      title = "Canada has admitted too many new immigrants",
+      subtitle = "Agree or disagree?",
+      x = "Too many immigrants admitted",
+      y = "Share of respondents",
+      caption = "Source: Innovative Research Group. November, 2025 Survey.
+      Weighted proportions") +
+    theme_minimal(base_size = 14) +
+    theme(
+      axis.text.x = element_text(angle = 25, hjust = 1),
+      legend.position = "bottom"
+    )
+
+```
+:::
+:::::
+
+------------------------------------------------------------------------
+
+## Variation In Immigration Support
+
+::::: columns
+::: {.column .left-notes width="25%"}
+-   Conservative supporters are **2.5 times more likely** to agree.
+-   NDP supporters are **34% less likely** to agree.
+-   Negative sentiment increases further right.
+:::
+
+::: {.column .right-plot width="75%"}
+```{r}
+#| fig.width: 7
+#| fig.height: 5.6
+ggplot(
+  lollipop,
+  aes(x = pct_diff, y = party, colour = colour)) +
+    geom_vline(xintercept = 0, linewidth = 0.8, colour = "grey", linetype = "dashed") +
+    geom_segment(aes(x = 0, xend = pct_diff, y = party, yend = party), linewidth = 1.2) +
+    geom_point(size = 6) +
+    geom_text(aes(label = label), nudge_y = 0.3, size = 4, fontface = "bold", colour = "grey20") +
+    annotate(
+      "text", x = 0, y = 0.5, label = "← Liberal voters",
+      hjust = 0, vjust = 0, size = 3.5, colour = "grey40", fontface = "italic") +
+    scale_colour_identity() +
+    scale_x_continuous(
+      breaks = c(-50, 0, 50, 100, 150),
+      labels = c("-50%", "0%", "50%", "100%", "150%"),
+      limits = c(-50, 175)) +
+    labs(
+      subtitle = "% more or less likely to agree than Liberal voters",
+      x = "% difference from Liberal voters",
+      y = NULL,
+      caption  = "Source: Innovative Research Group. November, 2025 Survey.") +
+    theme_minimal(base_size = 13) +
+    theme(
+      panel.grid.major.y = element_blank(),
+      panel.grid.minor   = element_blank(),
+      legend.position    = "none"
+    )
+```
+:::
+:::::
+
+------------------------------------------------------------------------
+
+## Immigration and Partisanship:
+
+### Why focus on sudden refugee inflows? ​
+
+-   Immigration attitudes are related to Conservative voting, but showing causation requires a quasi- experimental shock​.
+
+-   Refugee crises provide a sudden inflow event instead of regular immigration.​
+
+-   Responses to humanitarian events expose more extremist sentiments​.
+
+-   Refugees are different from other immigrants, and a humanitarian framing can influence public sympathy.​
+
+-   As a result, our findings relate to humanitarian refugee flow primarily rather than immigration broadly.
+
+------------------------------------------------------------------------
+
+## 2015 Syrian Refugee Crisis Background
+
+-   In 2015, Canada responded to the Syrian Refugee Crisis by introducing a program that rapidly resettled 25,000 Syrian refugees in roughly 100 days.​
+
+-   Between 2015 and 2016, 43% of Government Assisted Refugees (GARs) in British Columbia are settled in Surrey while cities like Abbotsford and Richmond only received about 0.5%.​
+
+-   In January 2016, a hate crime against Syrian refugees made it onto news outlets such as the Vancouver Sun and CBC.​
+
+-   This prompted a response on X (formerly Twitter) from JustinTrudeau, publicly condemning the anti-immigrant hate crime towards Syrian Refugees.​
+
+------------------------------------------------------------------------
+
+## Background: Syrian Refugees in BC {.map-slide}
+
+```{r}
+#| fig.width: 12
+#| fig.height: 7.2
+#| out.width: "100%"
+ggplot(
+  map) +
+    geom_sf(aes(fill = gar_pct), color = NA) +
+    geom_sf(fill = NA, color = "white", linewidth = 0.4) +
+    geom_sf(
+      data = map %>% filter(did_status == "Control"),
+      aes(color = "Control"),
+      fill = NA,
+      linewidth = 1) +
+    geom_sf(
+      data = map %>% filter(did_status == "Treated"),
+      aes(color = "Treated"),
+      fill = NA,
+      linewidth = 1.2) +
+    geom_sf_text(
+      aes(label = map_label),
+      size = 2.9,
+      lineheight = 2) +
+    scale_fill_gradient(
+      low = "#ffd900",
+      high = "#f50121",
+      name = "GAR arrivals\n(% of population)") +
+    scale_color_manual(
+      name = "Status",
+      values = c("Control" = "#000000","Treated" = "#1ac6e4")) +
+    labs(
+      title = "GAR Arrivals Share of Population",
+      caption = "Source: Immigrant Services Society of B.C. (2017)") +
+    theme_void() +
+    theme(
+      plot.title = element_text(hjust = 0.5, face = "bold", size = 18),
+      legend.position = "right",
+      legend.title = element_text(size = 11),
+      legend.text = element_text(size = 10))
+```
+
+::: map-overlay
+Surrey has:
+
+-   Affordable large rental units.
+
+-   ISSofBC infrastructure and RAP presence​.
+
+-   Primary refugee settlement.
+:::
+
+------------------------------------------------------------------------
+
+## Data and Identification Strategy
+
+::::: columns
+::: {.column .left-notes width="50%"}
+**Data Source**
+
+-   ​Immigrant of Service Society of BC: Syrian GAR Settlement counts by city​.
+
+-   Innovative Survey: Individual vote intention​.
+
+-   Statistics Canada: Municipal census population of BC.
+
+-   We use datasets from CTM surveys from April 2012 to April 2018 provided by Innovative Research.
+:::
+
+::: {.column .right-plot width="50%"}
+**Empirical Strategy**​
+
+-   Compare change in Conservative vote intention between Surrey and control cities before and after refugee resettlement in 2015​.
+
+-   Check parallel trends assumption to validate control cities as a credible counterfactual​.
+
+-   Apply a Difference-in-Differences (DiD) linear probability model to estimate the causal effect of refugee resettlement on vote intention.
+:::
+:::::
+
+------------------------------------------------------------------------
+
+## Parallel Trends Assumption Visual Check​
+
+::::: columns
+::: {.column .left-notes width="25%"}
+-   **Purpose**: We use control cities as a representation of how Surrey would have trended without large-scale resettlement after 2015.​
+
+-   For this to be valid, both must follow similar trends before 2015​
+
+-   The pre-treatment trends are not perfectly parallel ​
+
+-   Rather than relying on this visual alone,we **formally test** the **parallel trends assumption** using an **event study**.
+:::
+
+::: {.column .right-plot width="75%"}
+```{r}
+#| fig.width: 7
+#| fig.height: 5.6
+ggplot(pre_check, aes(x = year, y = mean_cons, group = group, color = group)) +
+  geom_line(linewidth = 1.2) +
+  geom_point(size = 2) +
+  labs(
+      x = "Year",
+      y = "Share choosing Conservative Party",
+      color = "",
+      title = "Conservative Support Before Refugee Resettlement",
+      subtitle = "Surrey vs Control Cities (Pre-Treatment)",
+      caption = "Source: Innovative Research Group, April 2012 to 2018 Survey"
+      ) +
+   theme_minimal() +
+   theme(legend.position = "bottom")
+```
+:::
+:::::
+
+------------------------------------------------------------------------
+
+## Testing Parallel Trends: Formal Event Study​
+
+::::: columns
+::: {.column .left-notes width="40%"}
+-   Using 2015 as our baseline, the difference in Conservative support between Surrey and control cities showed no meaningful gap from 2012 to 2014​.
+
+-   This validates our comparison; both groups were on the same trajectory before resettlement, meaning Surrey would've likely followed the same trend as control cities had it not received refugees​.
+
+-   From 2016 to 2018, Conservative support in Surrey declined relative to control cities, but not statistically significant, meaning we cannot rule out this occurred by chance​.
+:::
+
+::: {.column .right-plot width="60%"}
+```{r}
+#| fig.width: 7
+#| fig.height: 5.6
+# Event study plot
+iplot(
+  event_model,
+  xlab = "Years relative to 2015 (treatment)",
+  ylab = "Effect on Conservative vote",
+  main = "Event Study: Conservative Support in Surrey",
+  ref.line = 0
+)
+```
+:::
+:::::
+
+------------------------------------------------------------------------
+
+## Difference-in-Difference Model Results
+
+::::: columns
+::: {.column .left-notes width="30%"}
+**Surrey x Post = -0.067 (p = 0.48)​**
+
+-   **Refugee resettlement** is **associated** with a **6.7 PP decrease** in the **probability** of **voting Conservative in Surrey** relative to control cities​.
+
+-   However, there is a **48% chance** this **result occurred by chance** (assuming no real effect exists).​
+
+-   At the 95% confidence level, we can rule out Conservative vote share increases larger than \~12 PP.
+:::
+
+::: {.column .right-plot width="70%"}
+```{r}
+#| fig.width: 7
+#| fig.height: 5.6
+ggplot(did_data, aes(x = year, y = mean_cons,
+                     group = group,
+                     color = group,
+                     linetype = group)) +
+  geom_ribbon(data = ribbon,
+              aes(x = year, ymin = actual, ymax = counterfactual),
+              inherit.aes = FALSE,
+              fill = "blue", alpha = 0.15) +
+  geom_line(linewidth = 1.2, na.rm = TRUE) +
+  geom_point(size = 2, na.rm = TRUE) +
+  geom_vline(xintercept = 2015.5, linetype = "dashed", color = "grey50") +
+  annotate("text", x = 2015.6, y = max(did_data$mean_cons, na.rm = TRUE),
+           label = "Refugees arrive", hjust = 0, size = 2.8, color = "grey50") +
+  annotate("text", x = 2016.8, y = 0.40,
+           label = "DiD estimate\n(avg gap = -0.067)", 
+           size = 2.8, color = "blue") +
+  scale_linetype_manual(values = c("Surrey (actual)" = "solid",
+                                   "Surrey (counterfactual)" = "dashed",
+                                   "Control cities" = "solid")) +
+  labs(
+    x = "Year",
+    y = "Share choosing Conservative Party",
+    color = "",
+    linetype = "",
+    caption = "Model: P(Vote Conservative) = B0 +B1(Surrey × Post)+ B2Age + B3Gender +B4Income + City FE +Year FE​
+    Source: Innovative Research Group, April 2012 to 2018 Survey"
+  ) +
+  theme_minimal() +
+  theme(legend.position = "bottom")
+```
+:::
+:::::
+
+------------------------------------------------------------------------
+
+## Limitations of the DID​
+
+-   Cannot isolate the Syrian refugee crisis from simultaneous events such as Trudeau being elected and other events​.
+
+-   Control cities also received small numbers of Syrian refugees (not perfectly clean comparisons)​.
+
+-   Small sample sizes per city-year.
+
+-   Annual surveys only, cannot capture short-term attitude shifts within a year​.
+
+-   Missing demographic controls in DID: education, Immigration status, etc.​
+
+------------------------------------------------------------------------
+
+## Contextualizing our findings in the Canadian Political Landscape​
+
+> Through our research, we wanted to observe whether rapid influxes of migrants trigger mobilization against parties with stricter immigration policies in favour of exclusionary nationalism, populist rhetoric, and anti-immigrant policies.​
+
+-   Right-wing extremism can be defined through authoritarianism and anti-democratic values​.
+
+-   Secondary manifestations: xenophobia / anti-immigrant rhetoric.
+
+-   More studies have shown that exposure leads to democratic backsliding with increased support for stricter immigration policies—an outcome driven by anti-immigrant sentiments.​
+
+-   The absence of backlash may be explained by the humanitarian framing of the Syrian crisis. Public sympathy may have overrode the threat perceptions that typically drive voters toward restrictive immigration parties.​
+
+-   From our findings, the Canadian context shows that Canada's democratic institutions and humanitarianism remain strong amidst a refugee crisis.​
+
+------------------------------------------------------------------------
+
+## Scan this QR Code for Our App!​
+
+:::::: columns
+::: {.column width="35%"}
+### Syrian GARs & Immigration Sentiment
+
+-   Provincial level
+-   City level
+:::
+
+:::: {.column width="65%"}
+::: center
+![](images/shinyapp.png){width="60%"}
+:::
+::::
+::::::
+
+------------------------------------------------------------------------
+
+## Thank you!
+
+------------------------------------------------------------------------
+
+## Q & A​
+
+::: {.column width="65%"}
+![](images/shinyapp.png){fig-align="right" width="27%"}
+:::
