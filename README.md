@@ -10,7 +10,13 @@ You can view a summarised version of our research through our [shiny dashboard](
 
 ## Objectives:
 
-Given that our Capstone theme is on extremism, our goal is to explore: - Social and political mechanisms of right-wing extremism. - Extremism through shifts in Conservative vote intention and anti-immigrant sentiment. - Whether a systematic association between negative immigration attitudes and support for anti-immigrant parties reflects xenophobic political mobilization.
+Given that our Capstone theme is on extremism, our goal is to explore:
+
+-   Social and political mechanisms of right-wing extremism.
+
+-   Extremism through shifts in Conservative vote intention and anti-immigrant sentiment.
+
+-   Whether a systematic association between negative immigration attitudes and support for anti-immigrant parties reflects xenophobic political mobilization.
 
 ## Our Research Questions:
 
