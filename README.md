@@ -6,7 +6,7 @@ Our Capstone project examines the relationship between federal voting and immigr
 
 We look into whether anti-immigrant sentiment is associated with Conservative vote intention using sentiment analysis, as a view on if immigration attitudes are linked to voting behaviour. Use the 2015 Syrian Refugee Crisis as a quasi-experimental shock to test whether refugee exposure causally increases Conservative support, hypothesizing that negative sentiment is associated with Conservative voting and that refugee influx leads to greater right-wing support.
 
-You can view a summarised version of our research through our [shiny app](https://019d7b67-a8c0-00cc-17dd-77a4c2a1a99a.share.connect.posit.cloud/)
+You can view a summarised version of our research through our [shiny dashboard](https://019d7b67-a8c0-00cc-17dd-77a4c2a1a99a.share.connect.posit.cloud/)
 
 ## Objectives:
 
@@ -14,8 +14,8 @@ Given that our Capstone theme is on extremism, our goal is to explore: - Social 
 
 ## Our Research Questions:
 
--   What is the relationship between immigration and partisanship?
--   What is the impact of large refugee flows on voting intentions in Canada?
+-   **What is the relationship between immigration and partisanship?**
+-   **What is the impact of large refugee flows on voting intentions in Canada?**
 
 ## Our Method:
 
